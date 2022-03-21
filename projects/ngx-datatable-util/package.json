@@ -1,0 +1,21 @@
+{
+  "name": "ngx-datatable-util",
+  "version": "0.0.1",
+  "author": {
+    "name": "Manuel Perez",
+    "email": "manuelpc2495@gmail.com",
+    "url": "https://github.com/manu2495/smart-api-datatable"
+  },
+  "peerDependencies": {
+    "@angular/common": "^12.2.0",
+    "@angular/cdk": "^13.3.0",
+    "@angular/core": "^12.2.0",
+    "@swimlane/ngx-datatable": "^20.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@swimlane/ngx-datatable": "^20.0.0"
+  }
+}
