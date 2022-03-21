@@ -1,0 +1,262 @@
+<div *ngIf="dataTable?.config?.searchCriterion?.length != 0" class="search">
+  <i class="fa fa-search"></i>
+  <input type="text"
+         class="form-control form-control-sm mb-3"
+         placeholder="{{ dataTable?.config?.searchLabel || 'Buscar' }}"
+         (keyup)="search($event)">
+</div>
+
+<div class="context">
+  <div *ngIf="contextEvent?.show"
+       class="context-card" [style.top]="contextEvent?.y + 'px'" [style.left]="contextEvent?.x + 'px'">
+    <ul>
+      <ng-container *ngFor="let button of dataTableButton">
+        <li *ngIf="!button?.condition || button?.condition(contextEvent?.row)"
+            (click)="onClickContextMenuItem($event, button)"><i class="{{ button?.icon }} mr-1"></i> {{ button?.label || button?.helpLabel }}</li>
+      </ng-container>
+    </ul>
+  </div>
+
+  <ngx-datatable *ngIf="dataTable != undefined"
+                 #table
+                 class='material striped'
+                 [ngClass]="dataTable?.config?.scrollH ? 'complete-size' : ''"
+                 [columnMode]="dataTable?.config?.scrollH ? columnMode?.force : columnMode?.flex"
+                 [headerHeight]="50"
+                 [footerHeight]="50"
+                 [rows]="dataTable?.rows"
+                 [rowHeight]="dataTable?.config?.scrollH ? 100 : 'auto'"
+                 [loadingIndicator]="loading"
+                 [scrollbarH]="dataTable?.config?.scrollH"
+                 [scrollbarV]="dataTable?.config?.scrollH"
+                 [limit]="dataTable?.config?.allowServerSidePage ? dataTable?.config?.page?.size : rowLimit"
+                 [externalPaging]="dataTable?.config?.allowServerSidePage"
+                 [count]="dataTable?.config?.page?.totalElements"
+                 [offset]="dataTable?.config?.page?.pageNumber"
+                 [selected]="dataTable?.selectedRows"
+                 [selectionType]="dataTable?.config?.isSelectRow ? selectionType?.single : selectionType?.checkbox"
+                 [selectAllRowsOnPage]="false"
+                 (tableContextmenu)="onContextMenu($event)"
+                 (select)="onSelect($event)"
+                 (activate)="onActivate($event)"
+                 (page)="setPage($event)">
+
+    <!-- Row Detail Template -->
+    <ngx-datatable-row-detail #myDetailRow>
+      <ng-template
+        let-row="row"
+        let-expanded="expanded"
+        ngx-datatable-row-detail-template>
+
+        <ng-container *ngTemplateOutlet="itemTemplate;context:{row: row}"></ng-container>
+      </ng-template>
+    </ngx-datatable-row-detail>
+
+    <!-- ============================================================== -->
+    <!-- COLUMNA CON LISTA DE BOTONES -->
+    <!-- ============================================================== -->
+    <ngx-datatable-column *ngIf="dataTableButton?.length > 0 || dataTable?.config?.toggleRowBtn"
+                          [width]="50"
+                          [flexGrow]="calculateColumnBtnLength(dataTableButton)">
+      <ng-template let-row="row" let-value="value" ngx-datatable-cell-template>
+
+        <div class="btn-toggle button-group">
+
+          <!-- ============================================================== -->
+          <!-- BOTON: DETALLE DE CADA FILA -->
+          <!-- ============================================================== -->
+          <button *ngIf="dataTable?.config?.toggleRowBtn"
+                  class="btn btn-info btn-sm {{ screenQuery['sm']?.matches ? 'btn-block' : ''}}"
+                  (click)="toggleExpandRow(row); toggleActive[row?.id] = !toggleActive[row?.id];">
+
+            <i *ngIf="!toggleActive[row?.id]" class="fa fa-chevron-right"></i>
+            <i *ngIf="toggleActive[row?.id]" class="fa fa-chevron-down"></i>
+          </button>
+
+          <!-- ============================================================== -->
+          <!-- ARREGLO DE BOTONES -->
+          <!-- ============================================================== -->
+          <ng-container *ngIf="!dataTable?.config?.isGroupButtons">
+            <div *ngFor="let button of dataTableButton" class="d-inline">
+              <button *ngIf="!button?.condition || button?.condition(row)"
+                      [class]="screenQuery['sm']?.matches ? 'btn btn-' + button?.color + ' btn-sm btn-block' : 'btn btn-' + button?.color + ' btn-sm'"
+                      (click)="onTableBtnClickEvent(button, row?.id, row)">
+
+                <i [class]="button?.icon"></i> {{ button?.label }}
+              </button>
+            </div>
+          </ng-container>
+
+          <ng-container *ngIf="dataTable?.config?.isGroupButtons">
+            <div class="position-relative">
+              <button class="btn btn-primary btn-sm btn-option-modal"
+                      (click)="openBtnOptionModal(row)">
+                <i class="fa fa-bars"></i>
+              </button>
+
+              <div class="position-absolute card card-option" [ngClass]="{ 'card-option-open' : row?.open }">
+                <div class="card-body p-1">
+                  <ul class="list-unstyled m-0">
+                    <ng-container *ngFor="let button of dataTableButton">
+                      <li *ngIf="!button?.condition || button?.condition(row)"
+                          class="list-group-item border-0 item cursor-pointer"
+                          (click)="closeAllBtnOptionModal(); onClickBtnEvent(button);">
+                        <a class="cursor-pointer font-16 text-inverse">
+                          <i [class]="button?.icon"></i>
+                          <span class="ml-3 no-select">{{ button?.label != '' ? button?.label : button?.helpLabel }}</span>
+                        </a>
+                      </li>
+                    </ng-container>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+
+      </ng-template>
+    </ngx-datatable-column>
+
+    <!-- ============================================================== -->
+    <!-- COLUMNAS -->
+    <!-- ============================================================== -->
+    <ngx-datatable-column *ngFor="let column of dataTableColumn"
+                          [prop]="column?.name"
+                          [name]="column?.title"
+                          [width]="column?.frozen ? 180 : 200"
+                          [frozenLeft]="column?.frozen"
+                          [cellClass]="column?.hidden == '' ? '' : 'hidden-' + column?.hidden + '-down'"
+                          [headerClass]="(column?.hidden == '' ? '' : 'hidden-' + column?.hidden + '-down') + ' ' + (column?.type == 'money' ? 'text-right pr-4' : (column?.alignRight ? 'text-right pr-4' : ''))"
+                          [flexGrow]="column?.hidden == '' ? column?.flex : (screenQuery[column?.hidden]?.matches ? 0 : column?.flex)">
+
+      <ng-template let-row="row"
+                   let-value="value"
+                   ngx-datatable-cell-template>
+
+        <!-- Column Text Template -->
+        <div *ngIf="column?.type == columnType.TEXT"
+             [ngClass]="column?.alignRight ? 'text-right pr-4' : ''">
+          <p class="font-16">{{ value }}</p>
+        </div>
+
+        <div *ngIf="column?.type == columnType.LIST"
+             [ngClass]="column?.alignRight ? 'text-right pr-4' : ''">
+          <ul class="m-0 pl-3">
+            <li class="font-16" *ngFor="let v of value">{{ v }}</li>
+          </ul>
+        </div>
+
+        <!-- Column HTML Template -->
+        <div *ngIf="column?.type == columnType.HTML">
+          <span style="white-space: pre-wrap" [innerHTML]="value | sanitizeHtml"></span>
+        </div>
+
+        <!-- Column Text Template -->
+        <div *ngIf="column?.type == columnType.MONEY" [ngClass]="'text-right pr-4'">
+          <span *ngIf="column?.typeOption?.money == 'cordoba'">{{ value | currency: 'NIO':'C$' }}</span>
+          <span *ngIf="column?.typeOption?.money == 'dollar'">{{ value | currency: 'USD':'$' }}</span>
+        </div>
+
+        <!-- Column Active Template -->
+        <div *ngIf="column?.type == columnType.ACTIVE">
+          <label *ngIf="value" class="label label-success cursor-pointer">Activo</label>
+          <label *ngIf="!value" class="label label-danger cursor-pointer">Inactivo</label>
+        </div>
+
+        <!-- Column Badge Template -->
+        <div *ngIf="column?.type == columnType.BADGE" [ngClass]="column?.alignRight ? 'text-right pr-4' : ''">
+          <div *ngFor="let status of column?.statusOption">
+            <label *ngIf="status?.value == value" class="label label-{{ status?.color }}">{{ status?.label }}</label>
+          </div>
+        </div>
+      </ng-template>
+    </ngx-datatable-column>
+
+    <!-- ============================================================== -->
+    <!-- COLUMNA PARA ELIMINAR/RESTAURAR ELEMENTO -->
+    <!-- ============================================================== -->
+    <ngx-datatable-column *ngIf="dataTable?.config?.isDeleteColumn"
+                          [name]="''"
+                          [sortable]="false"
+                          [draggable]="false"
+                          [cellClass]="'text-right mr-2'"
+                          [prop]="'estaActivo'"
+                          [flexGrow]="1">
+      <!-- this will appear if column name is active. is used to change bool status on database -->
+      <ng-template let-row="row" let-value="value" ngx-datatable-cell-template>
+        <div>
+          <button *ngIf="value"
+                  (click)="delete(row)"
+                  class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></button>
+        </div>
+      </ng-template>
+    </ngx-datatable-column>
+
+    <!-- ============================================================== -->
+    <!-- COLUMNA CHECKBOX -->
+    <!-- ============================================================== -->
+    <ngx-datatable-column *ngIf="dataTable?.config?.isCheckRow"
+                          [flexGrow]="1"
+                          [sortable]="false"
+                          [draggable]="false">
+
+      <ng-template ngx-datatable-cell-template
+                   let-row="row"
+                   let-value="value"
+                   let-isSelected="isSelected"
+                   let-onCheckboxChangeFn="onCheckboxChangeFn">
+
+        <div *ngIf="dataTable?.config?.selectRowCondition?.length != 0 ? showCheckOption(row) : true"
+             class="text-right">
+          <div class="custom-control custom-checkbox mr-sm-2 m-b-15">
+            <input id="{{ row?.id }}"
+                   [checked]="isSelected"
+                   type="checkbox"
+                   class="custom-control-input" (change)="onCheckboxChangeFn($event)">
+            <label for="{{ row?.id }}" class="custom-control-label no-select"></label>
+          </div>
+        </div>
+      </ng-template>
+    </ngx-datatable-column>
+  </ngx-datatable>
+
+  <!-- ============================================================== -->
+  <!-- FOOTER -->
+  <!-- ============================================================== -->
+  <div *ngIf="dataTable?.config?.hasFooter" class="footer-detail">
+    <ngx-datatable #table
+                   class='material striped'
+                   [columnMode]="'flex'"
+                   [headerHeight]="50"
+                   [footerHeight]="50"
+                   [rows]="[]"
+                   [rowHeight]="'auto'"
+                   [loadingIndicator]="loading">
+
+      <ng-container>
+        <ngx-datatable-footer>
+          <ng-template ngx-datatable-footer-template
+                       let-rowCount="rowCount"
+                       let-pageSize="pageSize"
+                       let-selectedCount="selectedCount"
+                       let-curPage="curPage"
+                       let-offset="offset">
+
+            <div class="row w-100">
+              <div class="col-12 d-flex justify-content-end align-items-end">
+                <div class="font-14 font-weight-bold mr-3">
+                  <span class="mr-3">Total:</span>
+
+                  <ng-container *ngFor="let sum of dataTable?.config?.columnSum; let i = index;">
+                    <span>{{ getTotal(sum) | currency: (getMoney(sum) == 'dollar' ? 'USD' : 'NIO'): (getMoney(sum) == 'dollar' ? '$' : 'C$') }}</span>
+                    <span *ngIf="i != dataTable?.config?.columnSum?.length - 1" class="font-14 font-weight-normal mx-3">|</span>
+                  </ng-container>
+                </div>
+              </div>
+            </div>
+          </ng-template>
+        </ngx-datatable-footer>
+      </ng-container>
+    </ngx-datatable>
+  </div>
+</div>
